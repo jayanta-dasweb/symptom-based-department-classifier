@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Medical Department Predictor</title>
+</head>
+
+<body>
+    <h1>Train Model</h1>
+    <button onclick="trainModel()">Train Model</button>
+    <p id="trainResult"></p>
+
+    <h1>Predict Department</h1>
+    <textarea id="symptoms" rows="4" cols="50" placeholder="Enter symptoms..."></textarea><br>
+    <button onclick="predictDepartment()">Predict</button>
+    <p id="predictResult"></p>
+
+    <script>
+        function trainModel() {
+            fetch('/train', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('trainResult').innerText = 'Model trained with accuracy: ' + data.accuracy + '%';
+                });
+        }
+
+        function predictDepartment() {
+            const symptoms = document.getElementById('symptoms').value;
+            fetch('/predict', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({symptoms})
+            })
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('predictResult').innerText = 'Predicted Department: ' + data.department;
+                });
+        }
+    </script>
+</body>
+
+</html>
