@@ -5,6 +5,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.pipeline import Pipeline
 from sklearn.metrics import accuracy_score
+import MySQLdb
 import logging
 
 app = Flask(__name__)
@@ -12,7 +13,20 @@ app = Flask(__name__)
 # Set up logging
 logging.basicConfig(level=logging.DEBUG)
 
-# Global variables to store the pipeline and the accuracy
+# MySQL configurations
+app.config['MYSQL_HOST'] = 'localhost'
+app.config['MYSQL_USER'] = 'root'
+app.config['MYSQL_PASSWORD'] = 'root'
+app.config['MYSQL_DB'] = 'medical_data'
+
+# Initialize MySQL
+db = MySQLdb.connect(
+    host=app.config['MYSQL_HOST'],
+    user=app.config['MYSQL_USER'],
+    passwd=app.config['MYSQL_PASSWORD'],
+    db=app.config['MYSQL_DB']
+)
+
 pipeline = None
 accuracy = None
 
@@ -20,81 +34,54 @@ accuracy = None
 def index():
     return render_template('index.html')
 
+@app.route('/upload', methods=['POST'])
+def upload_file():
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file part'})
+
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'error': 'No selected file'})
+
+    # Read the uploaded file into a DataFrame
+    if file and (file.filename.endswith('.csv') or file.filename.endswith('.xlsx')):
+        if file.filename.endswith('.csv'):
+            df = pd.read_csv(file)
+        else:
+            df = pd.read_excel(file)
+
+        # Clean the data (example: only keep 'symptoms' and 'department' columns)
+        if 'symptoms' in df.columns and 'department' in df.columns:
+            df = df[['symptoms', 'department']]
+        else:
+            return jsonify({'error': 'Required columns not found in the file'})
+
+        # Insert the cleaned data into the MySQL table
+        cursor = db.cursor()
+        for index, row in df.iterrows():
+            cursor.execute("INSERT INTO symptoms_data (symptoms, department) VALUES (%s, %s)", (row['symptoms'], row['department']))
+        db.commit()
+        cursor.close()
+
+        return jsonify({'success': 'File uploaded and data inserted successfully'})
+    else:
+        return jsonify({'error': 'Invalid file format. Please upload a .csv or .xlsx file'})
+
 @app.route('/train', methods=['POST'])
 def train():
     global pipeline, accuracy
     try:
-        # Expanded dataset for better results
-        data = {
-            'symptoms': [
-                'chest pain, difficulty breathing', 
-                'persistent cough, coughing up blood', 
-                'frequent urination, excessive thirst', 
-                'rash, itchy skin', 
-                'headache, dizziness', 
-                'stomach pain, diarrhea',
-                'joint pain, muscle weakness',
-                'fever, chills, body ache',
-                'sore throat, swollen glands',
-                'nausea, vomiting, loss of appetite',
-                'weight gain, fatigue, depression',
-                'shortness of breath, chest tightness',
-                'skin rash, itchy eyes',
-                'heart palpitations, sweating',
-                'abdominal pain, bloating',
-                'blurred vision, eye pain',
-                'hearing loss, ear pain',
-                'back pain, leg pain',
-                'burning sensation during urination',
-                'chest pain, nausea, dizziness',
-                'fatigue, muscle aches',
-                'coughing, shortness of breath',
-                'skin lesions, bruising',
-                'frequent headaches, blurred vision',
-                'abdominal cramps, diarrhea',
-                'swollen joints, morning stiffness',
-                'fever, night sweats',
-                'difficulty swallowing, hoarse voice',
-                'vomiting, dehydration',
-                'rapid weight loss, fatigue',
-                'chronic cough, chest infections'
-            ],
-            'department': [
-                'Cardiology', 
-                'Pulmonology', 
-                'Endocrinology', 
-                'Dermatology', 
-                'Neurology', 
-                'Gastroenterology',
-                'Rheumatology',
-                'Infectious Diseases',
-                'Otolaryngology',
-                'Gastroenterology',
-                'Endocrinology',
-                'Pulmonology',
-                'Dermatology',
-                'Cardiology',
-                'Gastroenterology',
-                'Ophthalmology',
-                'Otolaryngology',
-                'Orthopedics',
-                'Urology',
-                'Cardiology',
-                'Internal Medicine',
-                'Pulmonology',
-                'Dermatology',
-                'Neurology',
-                'Gastroenterology',
-                'Rheumatology',
-                'Infectious Diseases',
-                'Otolaryngology',
-                'Gastroenterology',
-                'Endocrinology',
-                'Pulmonology'
-            ]
-        }
+        # Fetch data from the database
+        cursor = db.cursor()
+        cursor.execute("SELECT symptoms, department FROM symptoms_data")
+        data = cursor.fetchall()
+        cursor.close()
 
-        df = pd.DataFrame(data)
+        if len(data) == 0:
+            return jsonify({'error': 'No data available to train the model'})
+
+        # Create DataFrame from the fetched data
+        df = pd.DataFrame(data, columns=['symptoms', 'department'])
 
         # Text preprocessing and model training pipeline
         pipeline = Pipeline([

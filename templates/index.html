@@ -7,6 +7,13 @@
 </head>
 
 <body>
+    <h1>Upload Data</h1>
+    <form action="/upload" method="post" enctype="multipart/form-data">
+        <input type="file" name="file">
+        <input type="submit" value="Upload">
+    </form>
+    <p id="uploadResult"></p>
+
     <h1>Train Model</h1>
     <button onclick="trainModel()">Train Model</button>
     <p id="trainResult"></p>
@@ -17,6 +24,26 @@
     <p id="predictResult"></p>
 
     <script>
+        document.querySelector('form').addEventListener('submit', function (event) {
+            event.preventDefault();
+            const formData = new FormData(event.target);
+            fetch('/upload', {
+                method: 'POST',
+                body: formData
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        document.getElementById('uploadResult').innerText = 'Error: ' + data.error;
+                    } else {
+                        document.getElementById('uploadResult').innerText = 'Success: ' + data.success;
+                    }
+                })
+                .catch(error => {
+                    document.getElementById('uploadResult').innerText = 'Error: ' + error;
+                });
+        });
+
         function trainModel() {
             fetch('/train', {
                 method: 'POST',
