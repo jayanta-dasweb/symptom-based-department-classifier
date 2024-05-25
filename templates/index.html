@@ -24,9 +24,21 @@
                     'Content-Type': 'application/json'
                 }
             })
-                .then(response => response.json())
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
                 .then(data => {
-                    document.getElementById('trainResult').innerText = 'Model trained with accuracy: ' + data.accuracy + '%';
+                    if (data.error) {
+                        document.getElementById('trainResult').innerText = 'Error: ' + data.error;
+                    } else {
+                        document.getElementById('trainResult').innerText = 'Model trained with accuracy: ' + data.accuracy + '%';
+                    }
+                })
+                .catch(error => {
+                    document.getElementById('trainResult').innerText = 'Error: ' + error;
                 });
         }
 
@@ -39,9 +51,21 @@
                 },
                 body: JSON.stringify({symptoms})
             })
-                .then(response => response.json())
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
                 .then(data => {
-                    document.getElementById('predictResult').innerText = 'Predicted Department: ' + data.department;
+                    if (data.error) {
+                        document.getElementById('predictResult').innerText = 'Error: ' + data.error;
+                    } else {
+                        document.getElementById('predictResult').innerText = 'Predicted Department: ' + data.department;
+                    }
+                })
+                .catch(error => {
+                    document.getElementById('predictResult').innerText = 'Error: ' + error;
                 });
         }
     </script>
